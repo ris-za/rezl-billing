@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calculateInvoice, padInvoiceNumber } from '@/lib/calculations'
 
-// Gets the current user + their role from the profiles table (bypasses RLS)
+// Gets the current user + their role. Returns admin DB client so all
+// data ops bypass the broken recursive RLS policy on profiles/customers.
 async function getSessionWithRole() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,7 +21,9 @@ async function getSessionWithRole() {
     .single()
 
   const role = profile?.role ?? 'viewer'
-  return { supabase, user, role }
+  // Use admin client for all DB ops — auth is enforced above, bypassing
+  // the recursive RLS policy that causes "infinite recursion" errors.
+  return { supabase: admin, user, role }
 }
 
 // ─────────────────────────────────────────────
