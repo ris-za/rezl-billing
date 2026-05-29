@@ -10,7 +10,8 @@ export default async function BillingPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
-  if (profile?.role !== 'admin') redirect('/')
+  const role = profile?.role ?? 'viewer'
+  if (role !== 'admin' && role !== 'user') redirect('/')
 
   const { data: customers } = await supabase
     .from('customers')

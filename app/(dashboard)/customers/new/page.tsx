@@ -11,7 +11,8 @@ export default async function NewCustomerPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
-  if (profile?.role !== 'admin') redirect('/customers')
+  const role = profile?.role ?? 'viewer'
+  if (role !== 'admin' && role !== 'user') redirect('/customers')
 
   return (
     <div className="p-8 max-w-[1400px]">

@@ -24,7 +24,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const { data: { user } } = await supabase.auth.getUser()
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
-  const isAdmin = profile?.role === 'admin'
+  const role    = profile?.role ?? 'viewer'
+  const isAdmin = role === 'admin'
+  const canEdit = role === 'admin' || role === 'user'
 
   const [{ data: customer }, { data: invoices }, { count: paymentCount }] = await Promise.all([
     supabase.from('customers').select('*').eq('id', id).single(),
@@ -60,7 +62,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               <FileText className="w-4 h-4" />
               Statement
             </Link>
-            {isAdmin && (
+            {canEdit && (
               <Link
                 href="/billing"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
@@ -153,7 +155,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         {/* Right column */}
         <div className="lg:col-span-2 space-y-5">
           {/* Edit form */}
-          {isAdmin && (
+          {canEdit && (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-5 pb-4 border-b border-gray-100">Edit Customer</h3>
               <CustomerForm customer={customer} />

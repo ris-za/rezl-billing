@@ -8,13 +8,15 @@ import { cn } from '@/lib/utils'
 import { LayoutDashboard, Users, Zap, Receipt, BarChart3, LogOut, ChevronRight, UserCog } from 'lucide-react'
 import { toast } from 'sonner'
 
+// adminOnly: only admins see it
+// editOnly:  admins and billing-staff ('user' role) see it; viewers don't
 const navItems = [
-  { href: '/',         label: 'Dashboard',   icon: LayoutDashboard, adminOnly: false },
-  { href: '/customers',label: 'Customers',   icon: Users,           adminOnly: false },
-  { href: '/billing',  label: 'New Invoice', icon: Zap,             adminOnly: false },
-  { href: '/invoices', label: 'Invoices',    icon: Receipt,         adminOnly: false },
-  { href: '/reports',  label: 'Reports',     icon: BarChart3,       adminOnly: false },
-  { href: '/users',    label: 'Users',       icon: UserCog,         adminOnly: true  },
+  { href: '/',          label: 'Dashboard',   icon: LayoutDashboard, adminOnly: false, editOnly: false },
+  { href: '/customers', label: 'Customers',   icon: Users,           adminOnly: false, editOnly: false },
+  { href: '/billing',   label: 'New Invoice', icon: Zap,             adminOnly: false, editOnly: true  },
+  { href: '/invoices',  label: 'Invoices',    icon: Receipt,         adminOnly: false, editOnly: false },
+  { href: '/reports',   label: 'Reports',     icon: BarChart3,       adminOnly: false, editOnly: false },
+  { href: '/users',     label: 'Users',       icon: UserCog,         adminOnly: true,  editOnly: false },
 ]
 
 export function Sidebar({ role }: { role?: string }) {
@@ -59,7 +61,12 @@ export function Sidebar({ role }: { role?: string }) {
         >
           Navigation
         </p>
-        {navItems.filter(item => !item.adminOnly || role === 'admin').map(({ href, label, icon: Icon }) => {
+        {navItems
+          .filter(item =>
+            (!item.adminOnly || role === 'admin') &&
+            (!item.editOnly  || role === 'admin' || role === 'user')
+          )
+          .map(({ href, label, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
           return (
             <Link

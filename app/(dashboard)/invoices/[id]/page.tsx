@@ -25,7 +25,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser()
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
-  const isAdmin = profile?.role === 'admin'
+  const role    = profile?.role ?? 'viewer'
+  const isAdmin = role === 'admin'
+  const canEdit = role === 'admin' || role === 'user'
 
   const [{ data: invoice }, { data: paymentsRaw }] = await Promise.all([
     supabase.from('invoices').select('*, customers(*)').eq('id', id).single(),
@@ -51,7 +53,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-normal ${statusStyles[invoice.status] ?? statusStyles.draft}`}>
             {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
           </span>
-          {isAdmin && <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} />}
+          {canEdit && <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} />}
           <PrintButton invoiceNumber={invoice.invoice_number} />
         </div>
       </div>
@@ -286,21 +288,19 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <h3 className="font-bold text-gray-900 text-sm">Payments Received</h3>
               <p className="text-xs text-gray-400 mt-0.5">Track payments against this invoice</p>
             </div>
-            {isAdmin && (
-              <Link
-                href={`/customers/${customer.id}/statement`}
-                className="text-xs text-primary font-semibold hover:underline"
-              >
-                View Full Statement →
-              </Link>
-            )}
+            <Link
+              href={`/customers/${customer.id}/statement`}
+              className="text-xs text-primary font-semibold hover:underline"
+            >
+              View Full Statement →
+            </Link>
           </div>
           <RecordPaymentButton
             invoiceId={invoice.id}
             customerId={customer.id}
             invoiceTotal={invoice.total}
             payments={payments}
-            isAdmin={isAdmin}
+            isAdmin={canEdit}
           />
         </div>
       </div>

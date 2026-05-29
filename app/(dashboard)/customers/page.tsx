@@ -11,7 +11,9 @@ export default async function CustomersPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
-  const isAdmin = profile?.role === 'admin'
+  const role    = profile?.role ?? 'viewer'
+  const isAdmin = role === 'admin'
+  const canEdit = role === 'admin' || role === 'user'
 
   const [{ data: customers }, { data: inactiveCustomers }] = await Promise.all([
     supabase.from('customers').select('*').eq('is_active', true).order('name'),
@@ -29,7 +31,7 @@ export default async function CustomersPage() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Customers</h1>
           <p className="text-gray-500 text-sm mt-1">{typedCustomers?.length ?? 0} active customers</p>
         </div>
-        {isAdmin && (
+        {canEdit && (
           <Link
             href="/customers/new"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
@@ -46,7 +48,7 @@ export default async function CustomersPage() {
           <div className="py-16 text-center">
             <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
             <p className="text-sm font-medium text-gray-500 mb-1">No customers yet</p>
-            {isAdmin && (
+            {canEdit && (
               <Link href="/customers/new" className="text-xs text-primary hover:underline">
                 Add your first customer
               </Link>

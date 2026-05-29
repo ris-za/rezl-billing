@@ -11,7 +11,9 @@ export default async function InvoicesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
-  const isAdmin = profile?.role === 'admin'
+  const role    = profile?.role ?? 'viewer'
+  const isAdmin = role === 'admin'
+  const canEdit = role === 'admin' || role === 'user'
 
   const { data: invoices } = await supabase
     .from('invoices')
@@ -28,7 +30,7 @@ export default async function InvoicesPage() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Invoices</h1>
           <p className="text-gray-500 text-sm mt-1">{typedInvoices.length} total invoices</p>
         </div>
-        {isAdmin && (
+        {canEdit && (
           <Link
             href="/billing"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
