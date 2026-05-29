@@ -45,6 +45,7 @@ export async function proxy(request: NextRequest) {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=must_change_password`,
         {
+          cache: 'no-store',
           headers: {
             apikey:        process.env.SUPABASE_SERVICE_ROLE_KEY!,
             Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,

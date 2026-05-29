@@ -24,16 +24,16 @@ export default function ChangePasswordPage() {
     try {
       // Update auth password
       const { error: pwError } = await supabase.auth.updateUser({ password: newPassword })
-      if (pwError) throw pwError
+      if (pwError) throw new Error(pwError.message || 'Failed to update password')
 
       // Clear the must_change_password flag via API (bypasses RLS)
-      await fetch('/api/auth/clear-temp-password', { method: 'POST' })
+      const res = await fetch('/api/auth/clear-temp-password', { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to clear temporary password flag')
 
-      router.push('/')
-      router.refresh()
+      // Hard redirect so the proxy re-reads fresh DB state
+      window.location.href = '/'
     } catch (e: any) {
-      setError(e.message)
-    } finally {
+      setError(e.message || 'Something went wrong. Please try again.')
       setLoading(false)
     }
   }
