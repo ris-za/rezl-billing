@@ -23,9 +23,10 @@ interface Props {
   customerId: string
   invoiceTotal: number
   payments: Payment[]
+  isAdmin: boolean
 }
 
-export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payments }: Props) {
+export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payments, isAdmin }: Props) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -130,7 +131,7 @@ export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payme
           </div>
         </div>
 
-        {!isSettled && (
+        {!isSettled && isAdmin && (
           <button
             onClick={handleOpen}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90 shrink-0"
@@ -170,15 +171,17 @@ export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payme
                   <td className="py-3 px-4 text-gray-400 text-xs">{p.notes || '—'}</td>
                   <td className="py-3 px-4 text-right font-bold text-green-700">${fmt(p.amount)}</td>
                   <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => handleDelete(p.id)}
-                      disabled={deleting === p.id}
-                      className="p-1 rounded text-gray-300 hover:text-red-400 transition-colors"
-                    >
-                      {deleting === p.id
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : <Trash2 className="w-3.5 h-3.5" />}
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        disabled={deleting === p.id}
+                        className="p-1 rounded text-gray-300 hover:text-red-400 transition-colors"
+                      >
+                        {deleting === p.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

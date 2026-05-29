@@ -1,9 +1,17 @@
 export const dynamic = 'force-dynamic'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { redirect } from 'next/navigation'
 import { CustomerForm } from '@/components/CustomerForm'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
 export default async function NewCustomerPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
+  if (profile?.role !== 'admin') redirect('/customers')
 
   return (
     <div className="p-8 max-w-[1400px]">

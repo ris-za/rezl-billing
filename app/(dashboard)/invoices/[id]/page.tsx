@@ -300,6 +300,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             customerId={customer.id}
             invoiceTotal={invoice.total}
             payments={payments}
+            isAdmin={isAdmin}
           />
         </div>
       </div>

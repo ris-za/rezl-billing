@@ -36,18 +36,16 @@ export function LoginClient() {
       toast.error(error.message)
       setLoading(false)
     } else {
-      // Check if user must change their temporary password
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('must_change_password')
-          .eq('id', user.id)
-          .single()
-        if (profile?.must_change_password === true) {
+      // Check if user must change their temporary password (uses server API + admin client to bypass RLS)
+      try {
+        const res = await fetch('/api/auth/profile-flags')
+        const flags = await res.json()
+        if (flags.must_change_password === true) {
           router.push('/change-password')
           return
         }
+      } catch {
+        // If check fails, proceed to dashboard — don't block login
       }
       router.push('/')
       router.refresh()
