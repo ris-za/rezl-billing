@@ -26,14 +26,14 @@ export default function ChangePasswordPage() {
       const { error: pwError } = await supabase.auth.updateUser({ password: newPassword })
       if (pwError) throw new Error(pwError.message || 'Failed to update password')
 
-      // Clear the must_change_password flag directly from client
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (currentUser) {
-        await supabase.from('profiles').update({ must_change_password: false }).eq('id', currentUser.id)
+      // Clear the must_change_password flag via server API (uses admin client to bypass RLS)
+      const flagRes = await fetch('/api/auth/clear-temp-password', { method: 'POST' })
+      if (!flagRes.ok) {
+        const body = await flagRes.json().catch(() => ({}))
+        throw new Error(body.error || 'Failed to save. Please try again.')
       }
 
-      // Sign out and redirect to login — avoids proxy race condition
-      // User logs in fresh with their new password
+      // Sign out and redirect to login with success message
       await supabase.auth.signOut()
       window.location.href = '/login?welcome=1'
     } catch (e: any) {
