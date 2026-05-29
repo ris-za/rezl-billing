@@ -1,20 +1,23 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Sidebar } from '@/components/Sidebar'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let role = 'user'
+  let role = 'viewer'
   if (user) {
-    const { data: profile } = await supabase
+    // Use admin client to bypass RLS — layout is server-only, role drives UI visibility only
+    const admin = createAdminClient()
+    const { data: profile } = await admin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
-    role = profile?.role ?? 'user'
+    role = profile?.role ?? 'viewer'
   }
 
   return (
