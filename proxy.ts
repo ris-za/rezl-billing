@@ -26,8 +26,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const isLoginPage        = pathname === '/login'
-  const isChangePassword   = pathname.startsWith('/change-password')
+  const isLoginPage = pathname === '/login'
 
   // Unauthenticated — send to login
   if (!user && !isLoginPage) {
@@ -37,28 +36,6 @@ export async function proxy(request: NextRequest) {
   // Already logged in — don't let them see login page
   if (user && isLoginPage) {
     return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  // Must-change-password check — uses service role key via direct REST fetch to bypass RLS
-  if (user && !isLoginPage && !isChangePassword) {
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=must_change_password`,
-        {
-          cache: 'no-store',
-          headers: {
-            apikey:        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
-        }
-      )
-      const [profile] = await res.json()
-      if (profile?.must_change_password === true) {
-        return NextResponse.redirect(new URL('/change-password', request.url))
-      }
-    } catch {
-      // Silently skip on any error
-    }
   }
 
   return supabaseResponse

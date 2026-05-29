@@ -36,6 +36,19 @@ export function LoginClient() {
       toast.error(error.message)
       setLoading(false)
     } else {
+      // Check if user must change their temporary password
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('must_change_password')
+          .eq('id', user.id)
+          .single()
+        if (profile?.must_change_password === true) {
+          router.push('/change-password')
+          return
+        }
+      }
       router.push('/')
       router.refresh()
     }
