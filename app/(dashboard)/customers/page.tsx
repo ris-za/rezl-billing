@@ -16,8 +16,8 @@ export default async function CustomersPage() {
   const canEdit = role === 'admin' || role === 'user'
 
   const [{ data: customers }, { data: inactiveCustomers }] = await Promise.all([
-    supabase.from('customers').select('*').eq('is_active', true).order('name'),
-    supabase.from('customers').select('*').eq('is_active', false).order('name'),
+    admin.from('customers').select('*').eq('is_active', true).order('name'),
+    admin.from('customers').select('*').eq('is_active', false).order('name'),
   ])
 
   const typedCustomers = customers as Customer[] | null

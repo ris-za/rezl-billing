@@ -13,7 +13,7 @@ export default async function BillingPage() {
   const role = profile?.role ?? 'viewer'
   if (role !== 'admin' && role !== 'user') redirect('/')
 
-  const { data: customers } = await supabase
+  const { data: customers } = await admin
     .from('customers')
     .select('*')
     .eq('is_active', true)

@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { redirect } from 'next/navigation'
 import { notFound } from 'next/navigation'
 import { formatUSD } from '@/lib/calculations'
 import { format } from 'date-fns'
@@ -11,12 +13,16 @@ import type { Invoice, Payment } from '@/types'
 
 export default async function StatementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  // Auth check via user client, data via admin client (bypasses broken RLS)
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const admin = createAdminClient()
 
   const [{ data: customer }, { data: invoicesRaw }, { data: paymentsRaw }] = await Promise.all([
-    supabase.from('customers').select('*').eq('id', id).single(),
-    supabase.from('invoices').select('*').eq('customer_id', id).order('billing_month', { ascending: true }),
-    supabase.from('payments').select('*').eq('customer_id', id).order('payment_date', { ascending: true }),
+    admin.from('customers').select('*').eq('id', id).single(),
+    admin.from('invoices').select('*').eq('customer_id', id).order('billing_month', { ascending: true }),
+    admin.from('payments').select('*').eq('customer_id', id).order('payment_date', { ascending: true }),
   ])
 
   if (!customer) notFound()

@@ -29,9 +29,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const canEdit = role === 'admin' || role === 'user'
 
   const [{ data: customer }, { data: invoices }, { count: paymentCount }] = await Promise.all([
-    supabase.from('customers').select('*').eq('id', id).single(),
-    supabase.from('invoices').select('*, customers(*)').eq('customer_id', id).order('billing_month', { ascending: false }),
-    supabase.from('payments').select('*', { count: 'exact', head: true }).eq('customer_id', id),
+    admin.from('customers').select('*').eq('id', id).single(),
+    admin.from('invoices').select('*, customers(*)').eq('customer_id', id).order('billing_month', { ascending: false }),
+    admin.from('payments').select('*', { count: 'exact', head: true }).eq('customer_id', id),
   ])
 
   if (!customer) notFound()

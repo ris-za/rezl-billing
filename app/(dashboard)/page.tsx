@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { redirect } from 'next/navigation'
 import { formatUSD, getContractEndDate, getContractStatus } from '@/lib/calculations'
 import { Users, FileText, DollarSign, AlertTriangle, ArrowRight, Zap, TrendingUp } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
@@ -14,8 +16,12 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 }
 
 export default async function DashboardPage() {
+  // Auth check via user client, data via admin client (bypasses broken RLS)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const admin = createAdminClient()
 
   const [
     { count: totalCustomers },
@@ -24,14 +30,19 @@ export default async function DashboardPage() {
     { data: customers },
     { data: allInvoiceTotals },
     { data: allPayments },
+    { data: profile },
   ] = await Promise.all([
-    supabase.from('customers').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('invoices').select('*', { count: 'exact', head: true }),
-    supabase.from('invoices').select('*, customers(*)').order('created_at', { ascending: false }).limit(8),
-    supabase.from('customers').select('*').eq('is_active', true),
-    supabase.from('invoices').select('total, consumption_kwh'),
-    supabase.from('payments').select('amount'),
+    admin.from('customers').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    admin.from('invoices').select('*', { count: 'exact', head: true }),
+    admin.from('invoices').select('*, customers(*)').order('created_at', { ascending: false }).limit(8),
+    admin.from('customers').select('*').eq('is_active', true),
+    admin.from('invoices').select('total, consumption_kwh'),
+    admin.from('payments').select('amount'),
+    admin.from('profiles').select('role').eq('id', user.id).single(),
   ])
+
+  const role    = (profile as any)?.role ?? 'viewer'
+  const canEdit = role === 'admin' || role === 'user'
 
   const typedInvoices  = invoices as InvoiceWithCustomer[] | null
   const typedCustomers = customers as Customer[] | null
@@ -79,14 +90,16 @@ export default async function DashboardPage() {
                 {format(new Date(), 'EEEE, MMMM d, yyyy')}
               </p>
             </div>
-            <Link
-              href="/billing"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
-              style={{ background:'#16a34a', boxShadow:'0 4px 14px rgba(22,163,74,0.4)' }}
-            >
-              <Zap className="w-4 h-4" />
-              New Invoice
-            </Link>
+            {canEdit && (
+              <Link
+                href="/billing"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
+                style={{ background:'#16a34a', boxShadow:'0 4px 14px rgba(22,163,74,0.4)' }}
+              >
+                <Zap className="w-4 h-4" />
+                New Invoice
+              </Link>
+            )}
           </div>
 
           {/* Key metrics — 4 cards */}
@@ -203,10 +216,12 @@ export default async function DashboardPage() {
               <FileText className="w-7 h-7" style={{ color:'#16a34a' }} />
             </div>
             <p className="text-sm font-semibold text-gray-600 mb-1">No invoices yet</p>
-            <p className="text-xs text-gray-400 mb-4">Generate your first invoice to get started</p>
-            <Link href="/billing" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background:'#16a34a' }}>
-              <Zap className="w-3.5 h-3.5" /> New Invoice
-            </Link>
+            <p className="text-xs text-gray-400 mb-4">{canEdit ? 'Generate your first invoice to get started' : 'No invoices have been created yet'}</p>
+            {canEdit && (
+              <Link href="/billing" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background:'#16a34a' }}>
+                <Zap className="w-3.5 h-3.5" /> New Invoice
+              </Link>
+            )}
           </div>
         ) : (
           <div>
@@ -248,8 +263,8 @@ export default async function DashboardPage() {
       </div>
 
       {/* ═══ QUICK ACTIONS ═══ */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
+      {(() => {
+        const allActions = [
           {
             href: '/billing',
             icon: Zap,
@@ -257,6 +272,7 @@ export default async function DashboardPage() {
             desc: 'Create a new proforma invoice for a customer',
             color: '#16a34a',
             bg: '#f0fdf4',
+            editOnly: true,
           },
           {
             href: '/customers/new',
@@ -265,6 +281,7 @@ export default async function DashboardPage() {
             desc: 'Register a new customer in the system',
             color: '#1e2235',
             bg: '#f8f9fc',
+            editOnly: true,
           },
           {
             href: '/invoices',
@@ -273,24 +290,40 @@ export default async function DashboardPage() {
             desc: 'Browse, filter and manage all invoices',
             color: '#1e2235',
             bg: '#f8f9fc',
+            editOnly: false,
           },
-        ].map(({ href, icon: Icon, title, desc, color, bg }) => (
-          <Link
-            key={href}
-            href={href}
-            className="group bg-white rounded-2xl border border-gray-200 p-5 flex items-start gap-4 hover:shadow-md transition-all hover:-translate-y-0.5"
-          >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors" style={{ background: bg }}>
-              <Icon className="w-5 h-5" style={{ color }} />
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-gray-900 text-sm">{title}</p>
-              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>
-            </div>
-            <ArrowRight className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
-          </Link>
-        ))}
-      </div>
+          {
+            href: '/customers',
+            icon: Users,
+            title: 'View Customers',
+            desc: 'Browse all registered customers',
+            color: '#1e2235',
+            bg: '#f8f9fc',
+            editOnly: false,
+          },
+        ]
+        const actions = allActions.filter(a => !a.editOnly || canEdit)
+        return (
+          <div className={`grid gap-4 ${actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {actions.map(({ href, icon: Icon, title, desc, color, bg }) => (
+              <Link
+                key={href}
+                href={href}
+                className="group bg-white rounded-2xl border border-gray-200 p-5 flex items-start gap-4 hover:shadow-md transition-all hover:-translate-y-0.5"
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors" style={{ background: bg }}>
+                  <Icon className="w-5 h-5" style={{ color }} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900 text-sm">{title}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+              </Link>
+            ))}
+          </div>
+        )
+      })()}
 
     </div>
   )

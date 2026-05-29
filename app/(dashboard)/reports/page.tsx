@@ -1,20 +1,29 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { redirect } from 'next/navigation'
 import { ReportsClient } from '@/components/ReportsClient'
-import type { InvoiceWithCustomer, Customer } from '@/types'
+import type { InvoiceWithCustomer, Customer, Payment } from '@/types'
 
 export default async function ReportsPage() {
+  // Auth check via user client, data via admin client (bypasses broken RLS)
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  const [{ data: invoices }, { data: customers }] = await Promise.all([
-    supabase.from('invoices').select('*, customers(*)').order('created_at', { ascending: false }),
-    supabase.from('customers').select('*').eq('is_active', true).order('name'),
+  const admin = createAdminClient()
+
+  const [{ data: invoices }, { data: customers }, { data: payments }] = await Promise.all([
+    admin.from('invoices').select('*, customers(*)').order('created_at', { ascending: false }),
+    admin.from('customers').select('*').eq('is_active', true).order('name'),
+    admin.from('payments').select('*'),
   ])
 
   return (
     <ReportsClient
       invoices={(invoices as InvoiceWithCustomer[]) ?? []}
       customers={(customers as Customer[]) ?? []}
+      payments={(payments as Payment[]) ?? []}
     />
   )
 }

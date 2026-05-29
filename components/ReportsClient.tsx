@@ -7,7 +7,7 @@ import {
   FileSpreadsheet, FileDown, TrendingUp, Users,
   AlertTriangle, Receipt, Filter, X,
 } from 'lucide-react'
-import type { InvoiceWithCustomer, Customer } from '@/types'
+import type { InvoiceWithCustomer, Customer, Payment } from '@/types'
 
 type ReportType = 'invoices' | 'revenue' | 'customers' | 'outstanding'
 
@@ -55,9 +55,11 @@ const statusBadge = (val: string) => {
 export function ReportsClient({
   invoices,
   customers,
+  payments,
 }: {
   invoices: InvoiceWithCustomer[]
   customers: Customer[]
+  payments: Payment[]
 }) {
   const [reportType, setReportType] = useState<ReportType>('invoices')
   const [dateFrom, setDateFrom]     = useState('')
@@ -65,32 +67,49 @@ export function ReportsClient({
   const [statusFilter, setStatusFilter] = useState('all')
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
 
+  /* ── payment lookup: invoice_id → total payments received ── */
+  const paidByInvoice = useMemo(() => {
+    const map: Record<string, number> = {}
+    payments.forEach((p) => {
+      if (p.invoice_id) {
+        map[p.invoice_id] = (map[p.invoice_id] ?? 0) + p.amount
+      }
+    })
+    return map
+  }, [payments])
+
   /* ── filtered invoices ── */
   const filtered = useMemo(() => {
     return invoices.filter((inv) => {
-      if (dateFrom && inv.created_at < dateFrom)                        return false
-      if (dateTo   && inv.created_at > dateTo + 'T23:59:59')           return false
-      if (statusFilter !== 'all' && inv.status !== statusFilter)        return false
+      if (dateFrom && inv.created_at < dateFrom)                  return false
+      if (dateTo   && inv.created_at > dateTo + 'T23:59:59')     return false
+      if (statusFilter !== 'all' && inv.status !== statusFilter)  return false
       return true
     })
   }, [invoices, dateFrom, dateTo, statusFilter])
 
   /* ── report data ── */
   const invoiceRows = useMemo(() =>
-    filtered.map((inv) => [
-      `INV-${inv.invoice_number}`,
-      inv.customers.name,
-      inv.billing_period,
-      inv.consumption_kwh.toLocaleString(),
-      formatUSD(inv.tariff_rate),
-      formatUSD(inv.subtotal),
-      formatUSD(inv.electricity_levy),
-      formatUSD(inv.vat),
-      formatUSD(inv.total),
-      inv.status.charAt(0).toUpperCase() + inv.status.slice(1),
-      format(new Date(inv.created_at), 'dd MMM yyyy'),
-    ]),
-  [filtered])
+    filtered.map((inv) => {
+      const paid    = paidByInvoice[inv.id] ?? 0
+      const balance = Math.max(0, inv.total - paid)
+      return [
+        `INV-${inv.invoice_number}`,
+        inv.customers.name,
+        inv.billing_period,
+        inv.consumption_kwh.toLocaleString(),
+        formatUSD(inv.tariff_rate),
+        formatUSD(inv.subtotal),
+        formatUSD(inv.electricity_levy),
+        formatUSD(inv.vat),
+        formatUSD(inv.total),
+        formatUSD(paid),
+        formatUSD(balance),
+        inv.status.charAt(0).toUpperCase() + inv.status.slice(1),
+        format(new Date(inv.created_at), 'dd MMM yyyy'),
+      ]
+    }),
+  [filtered, paidByInvoice])
 
   const revenueRows = useMemo(() => {
     const map: Record<string, { billed: number; paid: number; count: number }> = {}
@@ -98,7 +117,7 @@ export function ReportsClient({
       if (!map[inv.billing_period]) map[inv.billing_period] = { billed: 0, paid: 0, count: 0 }
       map[inv.billing_period].billed += inv.total
       map[inv.billing_period].count  += 1
-      if (inv.status === 'paid') map[inv.billing_period].paid += inv.total
+      map[inv.billing_period].paid   += paidByInvoice[inv.id] ?? 0
     })
     return Object.entries(map)
       .sort(([a], [b]) => b.localeCompare(a))
@@ -107,17 +126,17 @@ export function ReportsClient({
         v.count.toString(),
         formatUSD(v.billed),
         formatUSD(v.paid),
-        formatUSD(v.billed - v.paid),
+        formatUSD(Math.max(0, v.billed - v.paid)),
       ])
-  }, [filtered])
+  }, [filtered, paidByInvoice])
 
   const customerRows = useMemo(() =>
     customers
       .map((c) => {
         const ci = filtered.filter((i) => i.customer_id === c.id)
         if (!ci.length) return null
-        const billed      = ci.reduce((s, i) => s + i.total, 0)
-        const paid        = ci.filter((i) => i.status === 'paid').reduce((s, i) => s + i.total, 0)
+        const billed = ci.reduce((s, i) => s + i.total, 0)
+        const paid   = ci.reduce((s, i) => s + (paidByInvoice[i.id] ?? 0), 0)
         return [
           c.name,
           c.service_number,
@@ -125,27 +144,33 @@ export function ReportsClient({
           ci.length.toString(),
           formatUSD(billed),
           formatUSD(paid),
-          formatUSD(billed - paid),
+          formatUSD(Math.max(0, billed - paid)),
         ]
       })
       .filter(Boolean) as string[][],
-  [filtered, customers])
+  [filtered, customers, paidByInvoice])
 
   const outstandingRows = useMemo(() =>
     filtered
       .filter((inv) => inv.status === 'overdue' || inv.status === 'issued')
-      .map((inv) => [
-        `INV-${inv.invoice_number}`,
-        inv.customers.name,
-        inv.billing_period,
-        formatUSD(inv.total),
-        inv.due_date ? format(new Date(inv.due_date), 'dd MMM yyyy') : 'Upon receipt',
-        inv.due_date && inv.status === 'overdue'
-          ? `${differenceInDays(new Date(), new Date(inv.due_date))} days`
-          : 'N/A',
-        inv.status.charAt(0).toUpperCase() + inv.status.slice(1),
-      ]),
-  [filtered])
+      .map((inv) => {
+        const paid    = paidByInvoice[inv.id] ?? 0
+        const balance = Math.max(0, inv.total - paid)
+        return [
+          `INV-${inv.invoice_number}`,
+          inv.customers.name,
+          inv.billing_period,
+          formatUSD(inv.total),
+          formatUSD(paid),
+          formatUSD(balance),
+          inv.due_date ? format(new Date(inv.due_date), 'dd MMM yyyy') : 'Upon receipt',
+          inv.due_date && inv.status === 'overdue'
+            ? `${differenceInDays(new Date(), new Date(inv.due_date))} days`
+            : 'N/A',
+          inv.status.charAt(0).toUpperCase() + inv.status.slice(1),
+        ]
+      }),
+  [filtered, paidByInvoice])
 
   /* ── current report config ── */
   const report = useMemo(() => {
@@ -154,15 +179,15 @@ export function ReportsClient({
         return {
           title:    'Invoice Report',
           filename: `invoice-report-${format(new Date(), 'yyyy-MM-dd')}`,
-          headers:  ['Invoice No.', 'Customer', 'Period', 'Consumption (kWh)', 'Tariff Rate', 'Subtotal', 'Levy (3%)', 'VAT (16%)', 'Total', 'Status', 'Date'],
+          headers:  ['Invoice No.', 'Customer', 'Period', 'Consumption (kWh)', 'Tariff Rate', 'Subtotal', 'Levy (3%)', 'VAT (16%)', 'Total', 'Paid', 'Balance', 'Status', 'Date'],
           rows:     invoiceRows,
-          statusCol: 9,
+          statusCol: 11,
         }
       case 'revenue':
         return {
           title:    'Revenue Summary',
           filename: `revenue-summary-${format(new Date(), 'yyyy-MM-dd')}`,
-          headers:  ['Billing Period', 'Invoices', 'Total Billed', 'Amount Paid', 'Outstanding'],
+          headers:  ['Billing Period', 'Invoices', 'Total Billed', 'Payments Received', 'Outstanding'],
           rows:     revenueRows,
           statusCol: -1,
         }
@@ -170,7 +195,7 @@ export function ReportsClient({
         return {
           title:    'Customer Report',
           filename: `customer-report-${format(new Date(), 'yyyy-MM-dd')}`,
-          headers:  ['Customer', 'Service No.', 'TPIN', 'Invoices', 'Total Billed', 'Paid', 'Outstanding'],
+          headers:  ['Customer', 'Service No.', 'TPIN', 'Invoices', 'Total Billed', 'Payments Received', 'Outstanding'],
           rows:     customerRows,
           statusCol: -1,
         }
@@ -178,17 +203,17 @@ export function ReportsClient({
         return {
           title:    'Outstanding Invoices',
           filename: `outstanding-${format(new Date(), 'yyyy-MM-dd')}`,
-          headers:  ['Invoice No.', 'Customer', 'Period', 'Amount Due', 'Due Date', 'Days Overdue', 'Status'],
+          headers:  ['Invoice No.', 'Customer', 'Period', 'Invoiced', 'Paid So Far', 'Balance Due', 'Due Date', 'Days Overdue', 'Status'],
           rows:     outstandingRows,
-          statusCol: 6,
+          statusCol: 8,
         }
     }
   }, [reportType, invoiceRows, revenueRows, customerRows, outstandingRows])
 
-  /* ── summary stats ── */
+  /* ── summary stats (payment-based, not status-based) ── */
   const totalBilled      = filtered.reduce((s, i) => s + i.total, 0)
-  const totalPaid        = filtered.filter((i) => i.status === 'paid').reduce((s, i) => s + i.total, 0)
-  const totalOutstanding = totalBilled - totalPaid
+  const totalPaid        = filtered.reduce((s, i) => s + (paidByInvoice[i.id] ?? 0), 0)
+  const totalOutstanding = Math.max(0, totalBilled - totalPaid)
 
   /* ── Excel export ── */
   async function handleExcelExport() {
@@ -211,7 +236,10 @@ export function ReportsClient({
       const WHITE  = 'FFFFFFFF'
 
       // column-letter helper (1→A, 11→K, etc.)
-      const col = (n: number) => String.fromCharCode(64 + n)
+      const col = (n: number) => {
+        if (n <= 26) return String.fromCharCode(64 + n)
+        return String.fromCharCode(64 + Math.floor((n - 1) / 26)) + String.fromCharCode(65 + (n - 1) % 26)
+      }
       const lastCol = col(report.headers.length)
 
       // ── SHEET 1: SUMMARY ─────────────────────────────────────────
@@ -298,9 +326,9 @@ export function ReportsClient({
 
       // Rows 11-13 – stats
       const statsRows = [
-        ['Total Billed',  formatUSD(totalBilled)],
-        ['Collected',     formatUSD(totalPaid)],
-        ['Outstanding',   formatUSD(totalOutstanding)],
+        ['Total Billed',       formatUSD(totalBilled)],
+        ['Payments Received',  formatUSD(totalPaid)],
+        ['Outstanding',        formatUSD(totalOutstanding)],
       ]
       statsRows.forEach(([label, value], i) => {
         const r   = 11 + i
@@ -445,7 +473,7 @@ export function ReportsClient({
         data.mergeCells(`A${tRow}:${lastCol}${tRow}`)
         data.getRow(tRow).height = 20
         Object.assign(data.getCell(`A${tRow}`), {
-          value: `Total Records: ${report.rows.length}   |   Total Billed: ${formatUSD(totalBilled)}   |   Collected: ${formatUSD(totalPaid)}   |   Outstanding: ${formatUSD(totalOutstanding)}`,
+          value: `Total Records: ${report.rows.length}   |   Total Billed: ${formatUSD(totalBilled)}   |   Payments Received: ${formatUSD(totalPaid)}   |   Outstanding: ${formatUSD(totalOutstanding)}`,
           style: {
             fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } },
             font: { bold: true, color: { argb: WHITE }, size: 9 },
@@ -535,9 +563,9 @@ export function ReportsClient({
 
       // Summary stats row
       const stats = [
-        { label: 'Total Billed',   val: formatUSD(totalBilled)      },
-        { label: 'Collected',      val: formatUSD(totalPaid)        },
-        { label: 'Outstanding',    val: formatUSD(totalOutstanding) },
+        { label: 'Total Billed',      val: formatUSD(totalBilled)      },
+        { label: 'Payments Received', val: formatUSD(totalPaid)        },
+        { label: 'Outstanding',       val: formatUSD(totalOutstanding) },
       ]
       const boxW = (pageW - 28) / 3
       stats.forEach(({ label, val }, i) => {
@@ -651,11 +679,14 @@ export function ReportsClient({
               <p className="text-2xl font-black text-white tabular-nums">{formatUSD(totalBilled)}</p>
             </div>
             <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#6b7db3' }}>Collected</p>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#6b7db3' }}>Payments Received</p>
               <p className="text-2xl font-black text-white tabular-nums">{formatUSD(totalPaid)}</p>
             </div>
-            <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#6b7db3' }}>Outstanding</p>
+            <div className="rounded-xl p-4" style={{
+              background: totalOutstanding > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(22,163,74,0.08)',
+              border: `1px solid ${totalOutstanding > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(22,163,74,0.2)'}`,
+            }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: totalOutstanding > 0 ? '#f87171' : '#4ade80' }}>Outstanding</p>
               <p className="text-2xl font-black text-white tabular-nums">{formatUSD(totalOutstanding)}</p>
             </div>
           </div>

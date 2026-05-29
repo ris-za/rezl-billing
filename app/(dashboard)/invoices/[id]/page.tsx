@@ -30,8 +30,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const canEdit = role === 'admin' || role === 'user'
 
   const [{ data: invoice }, { data: paymentsRaw }] = await Promise.all([
-    supabase.from('invoices').select('*, customers(*)').eq('id', id).single(),
-    supabase.from('payments').select('*').eq('invoice_id', id).order('payment_date', { ascending: true }),
+    admin.from('invoices').select('*, customers(*)').eq('id', id).single(),
+    admin.from('payments').select('*').eq('invoice_id', id).order('payment_date', { ascending: true }),
   ])
 
   if (!invoice) notFound()

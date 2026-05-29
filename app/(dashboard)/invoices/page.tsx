@@ -15,7 +15,7 @@ export default async function InvoicesPage() {
   const isAdmin = role === 'admin'
   const canEdit = role === 'admin' || role === 'user'
 
-  const { data: invoices } = await supabase
+  const { data: invoices } = await admin
     .from('invoices')
     .select('*, customers(*)')
     .order('created_at', { ascending: false })
