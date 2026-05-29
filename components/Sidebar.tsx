@@ -121,7 +121,7 @@ export function Sidebar({ role }: { role?: string }) {
       {/* Developer credit */}
       <div className="px-5 py-4 border-t" style={{ borderColor: '#2e3554' }}>
         <p className="text-xs" style={{ color: '#3d4f7a' }}>
-          Powered by{' '}
+          Developed by{' '}
           <a
             href="https://portifolio-blue-delta.vercel.app/"
             target="_blank"
