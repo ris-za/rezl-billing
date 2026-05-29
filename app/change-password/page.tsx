@@ -26,11 +26,8 @@ export default function ChangePasswordPage() {
       const { error: pwError } = await supabase.auth.updateUser({ password: newPassword })
       if (pwError) throw pwError
 
-      // Clear the must_change_password flag
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.from('profiles').update({ must_change_password: false }).eq('id', user.id)
-      }
+      // Clear the must_change_password flag via API (bypasses RLS)
+      await fetch('/api/auth/clear-temp-password', { method: 'POST' })
 
       router.push('/')
       router.refresh()

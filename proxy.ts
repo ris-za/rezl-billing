@@ -39,20 +39,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Must-change-password check (only after SQL migration is run)
+  // Must-change-password check — uses service role key via direct REST fetch to bypass RLS
   if (user && !isLoginPage && !isChangePassword) {
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('must_change_password')
-        .eq('id', user.id)
-        .single()
-
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=must_change_password`,
+        {
+          headers: {
+            apikey:        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+          },
+        }
+      )
+      const [profile] = await res.json()
       if (profile?.must_change_password === true) {
         return NextResponse.redirect(new URL('/change-password', request.url))
       }
     } catch {
-      // Column not yet added via SQL migration — skip silently
+      // Silently skip on any error
     }
   }
 
