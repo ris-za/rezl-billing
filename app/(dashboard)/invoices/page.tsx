@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import type { InvoiceWithCustomer } from '@/types'
@@ -8,7 +9,8 @@ import { InvoicesClient } from '@/components/InvoicesClient'
 export default async function InvoicesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
   const isAdmin = profile?.role === 'admin'
 
   const { data: invoices } = await supabase

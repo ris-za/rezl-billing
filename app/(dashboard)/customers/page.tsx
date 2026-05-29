@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { Plus, Users } from 'lucide-react'
 import { DeleteCustomerButton } from '@/components/DeleteCustomerButton'
@@ -8,7 +9,8 @@ import type { Customer } from '@/types'
 export default async function CustomersPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
   const isAdmin = profile?.role === 'admin'
 
   const [{ data: customers }, { data: inactiveCustomers }] = await Promise.all([

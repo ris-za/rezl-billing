@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { formatUSD } from '@/lib/calculations'
 import { format } from 'date-fns'
@@ -22,7 +23,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
   const isAdmin = profile?.role === 'admin'
 
   const [{ data: invoice }, { data: paymentsRaw }] = await Promise.all([

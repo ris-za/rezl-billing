@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { CustomerForm } from '@/components/CustomerForm'
 import { formatUSD, getContractEndDate, getContractStatus } from '@/lib/calculations'
@@ -21,7 +22,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single()
   const isAdmin = profile?.role === 'admin'
 
   const [{ data: customer }, { data: invoices }, { count: paymentCount }] = await Promise.all([
