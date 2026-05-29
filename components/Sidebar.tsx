@@ -120,24 +120,20 @@ export function Sidebar({ role }: { role?: string }) {
 
       {/* Developer credit */}
       <div className="px-5 py-4 border-t" style={{ borderColor: '#2e3554' }}>
-        <p className="text-xs font-semibold" style={{ color: '#4ade80' }}>
-          © {new Date().getFullYear()} Saidi Tembo
-        </p>
-        <p className="text-xs mt-1 leading-relaxed" style={{ color: '#4a5180' }}>
-          Designed &amp; developed by{' '}
+        <p className="text-xs" style={{ color: '#3d4f7a' }}>
+          Powered by{' '}
           <a
             href="https://portifolio-blue-delta.vercel.app/"
             target="_blank"
             rel="noopener noreferrer"
             className="transition-colors hover:underline"
-            style={{ color: '#6b7db3' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#4ade80')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7db3')}
+            style={{ color: '#4a5a8a' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#6b7db3')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#4a5a8a')}
           >
             Saidi Tembo
           </a>
         </p>
-        <p className="text-xs mt-0.5" style={{ color: '#2e3554' }}>All rights reserved.</p>
       </div>
     </aside>
   )
