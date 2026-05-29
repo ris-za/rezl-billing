@@ -32,8 +32,10 @@ export default function ChangePasswordPage() {
         await supabase.from('profiles').update({ must_change_password: false }).eq('id', currentUser.id)
       }
 
-      // Hard redirect so the proxy re-reads fresh DB state
-      window.location.href = '/'
+      // Sign out and redirect to login — avoids proxy race condition
+      // User logs in fresh with their new password
+      await supabase.auth.signOut()
+      window.location.href = '/login?welcome=1'
     } catch (e: any) {
       setError(e.message || 'Something went wrong. Please try again.')
       setLoading(false)
