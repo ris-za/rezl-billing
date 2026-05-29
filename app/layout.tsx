@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2025 Saidi Tembo. All rights reserved.
+ * Unauthorised copying, modification, distribution or use of this file,
+ * via any medium, is strictly prohibited without the express written
+ * permission of Saidi Tembo.
+ */
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";

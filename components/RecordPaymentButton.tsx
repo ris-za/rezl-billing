@@ -1,5 +1,13 @@
 'use client'
 
+/**
+ * Copyright (c) 2025 Saidi Tembo. All rights reserved.
+ * Unauthorised copying, modification, distribution or use of this file,
+ * via any medium, is strictly prohibited without the express written
+ * permission of Saidi Tembo.
+ */
+
+
 import { useState, useTransition } from 'react'
 import { recordPayment, deletePayment } from '@/lib/actions'
 import { PlusCircle, Trash2, X, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'

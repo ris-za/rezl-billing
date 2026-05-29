@@ -1,5 +1,13 @@
 'use client'
 
+/**
+ * Copyright (c) 2025 Saidi Tembo. All rights reserved.
+ * Unauthorised copying, modification, distribution or use of this file,
+ * via any medium, is strictly prohibited without the express written
+ * permission of Saidi Tembo.
+ */
+
+
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Pencil, KeyRound, Trash2, Loader2, Shield, User, RefreshCw } from 'lucide-react'
