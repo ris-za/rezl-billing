@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { createInvoice } from '@/lib/actions'
 import { calculateInvoice, formatUSD } from '@/lib/calculations'
 import { toast } from 'sonner'
@@ -18,6 +19,7 @@ interface BillingFormProps {
 
 export function BillingForm({ customers }: BillingFormProps) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [consumption, setConsumption] = useState('')
   const [tariffRate, setTariffRate] = useState('')
@@ -54,12 +56,12 @@ export function BillingForm({ customers }: BillingFormProps) {
       formData.set('consumption_kwh', String(curr - prev))
     }
     startTransition(async () => {
-      try {
-        await createInvoice(formData)
-      } catch (err: unknown) {
-        if (err instanceof Error && (err as any).digest?.startsWith('NEXT_REDIRECT')) throw err
-        toast.error(err instanceof Error ? err.message : 'Failed to create invoice')
+      const result = await createInvoice(formData)
+      if (result.error) {
+        toast.error(result.error)
+        return
       }
+      router.push(`/invoices/${result.invoiceId}`)
     })
   }
 

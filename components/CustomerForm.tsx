@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { createCustomer, updateCustomer } from '@/lib/actions'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
@@ -24,21 +25,23 @@ interface CustomerFormProps {
 
 export function CustomerForm({ customer }: CustomerFormProps) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     startTransition(async () => {
-      try {
-        if (customer) {
-          await updateCustomer(customer.id, formData)
-        } else {
-          await createCustomer(formData)
-        }
-      } catch (err: unknown) {
-        if (err instanceof Error && (err as any).digest?.startsWith('NEXT_REDIRECT')) throw err
-        toast.error(err instanceof Error ? err.message : 'Something went wrong')
+      const result = customer
+        ? await updateCustomer(customer.id, formData)
+        : await createCustomer(formData)
+
+      if (result.error) {
+        toast.error(result.error)
+        return
       }
+      toast.success(customer ? 'Customer updated' : 'Customer added')
+      router.push('/customers')
+      router.refresh()
     })
   }
 
@@ -170,7 +173,7 @@ export function CustomerForm({ customer }: CustomerFormProps) {
         </button>
         <button
           type="button"
-          onClick={() => history.back()}
+          onClick={() => router.back()}
           className="px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
         >
           Cancel

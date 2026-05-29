@@ -73,27 +73,18 @@ export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payme
     fd.set('invoice_id', invoiceId)
     fd.set('customer_id', customerId)
     startTransition(async () => {
-      try {
-        await recordPayment(fd)
-        setOpen(false)
-        toast.success('Payment recorded')
-      } catch (err: unknown) {
-        if (err instanceof Error && (err as any).digest?.startsWith('NEXT_REDIRECT')) throw err
-        toast.error(err instanceof Error ? err.message : 'Failed to record payment')
-      }
+      const result = await recordPayment(fd)
+      if (result.error) { toast.error(result.error); return }
+      setOpen(false)
+      toast.success('Payment recorded')
     })
   }
 
   async function handleDelete(paymentId: string) {
     setDeleting(paymentId)
-    try {
-      await deletePayment(paymentId, invoiceId, customerId)
-      toast.success('Payment removed')
-    } catch {
-      toast.error('Failed to remove payment')
-    } finally {
-      setDeleting(null)
-    }
+    const result = await deletePayment(paymentId, invoiceId, customerId)
+    if (result.error) { toast.error(result.error) } else { toast.success('Payment removed') }
+    setDeleting(null)
   }
 
   return (

@@ -39,13 +39,10 @@ export function InvoiceStatusActions({ invoiceId, currentStatus }: InvoiceStatus
   function handleStatusChange(status: string) {
     setOpen(false)
     startTransition(async () => {
-      try {
-        await updateInvoiceStatus(invoiceId, status)
-        toast.success(`Marked as ${statusLabels[status]}`)
-        router.refresh()
-      } catch {
-        toast.error('Failed to update status')
-      }
+      const result = await updateInvoiceStatus(invoiceId, status)
+      if (result.error) { toast.error(result.error); return }
+      toast.success(`Marked as ${statusLabels[status]}`)
+      router.refresh()
     })
   }
 

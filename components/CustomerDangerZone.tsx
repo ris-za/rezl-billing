@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { deactivateCustomer, deleteCustomer } from '@/lib/actions'
 import { Loader2, Lock } from 'lucide-react'
 import { toast } from 'sonner'
@@ -8,22 +9,22 @@ import { toast } from 'sonner'
 interface CustomerDangerZoneProps {
   customerId: string
   customerName: string
-  hasHistory: boolean   // true if customer has ANY invoices or payments
+  hasHistory: boolean
 }
 
 export function CustomerDangerZone({ customerId, customerName, hasHistory }: CustomerDangerZoneProps) {
   const [isDeactivating, startDeactivate] = useTransition()
   const [isDeleting, startDelete] = useTransition()
+  const router = useRouter()
 
   function handleDeactivate() {
     if (!window.confirm(`Deactivate "${customerName}"?\n\nThey will be hidden from the active customer list but all their invoices and payment records will be fully preserved.`)) return
     startDeactivate(async () => {
-      try {
-        await deactivateCustomer(customerId)
-      } catch (err: unknown) {
-        if (err instanceof Error && (err as any).digest?.startsWith('NEXT_REDIRECT')) throw err
-        toast.error(err instanceof Error ? err.message : 'Failed to deactivate customer')
-      }
+      const result = await deactivateCustomer(customerId)
+      if (result.error) { toast.error(result.error); return }
+      toast.success('Customer deactivated')
+      router.push('/customers')
+      router.refresh()
     })
   }
 
@@ -33,12 +34,11 @@ export function CustomerDangerZone({ customerId, customerName, hasHistory }: Cus
     )
     if (input?.trim().toUpperCase() !== 'DELETE') return
     startDelete(async () => {
-      try {
-        await deleteCustomer(customerId)
-      } catch (err: unknown) {
-        if (err instanceof Error && (err as any).digest?.startsWith('NEXT_REDIRECT')) throw err
-        toast.error(err instanceof Error ? err.message : 'Failed to delete customer')
-      }
+      const result = await deleteCustomer(customerId)
+      if (result.error) { toast.error(result.error); return }
+      toast.success('Customer deleted')
+      router.push('/customers')
+      router.refresh()
     })
   }
 
@@ -48,7 +48,7 @@ export function CustomerDangerZone({ customerId, customerName, hasHistory }: Cus
       <p className="text-xs text-gray-400 mb-4">Irreversible actions — proceed with caution.</p>
 
       <div className="space-y-4">
-        {/* Deactivate — always available */}
+        {/* Deactivate */}
         <div className="flex items-start justify-between gap-4 pb-4 border-b border-red-100">
           <div>
             <p className="text-sm font-medium text-gray-700">Deactivate customer</p>
@@ -67,7 +67,7 @@ export function CustomerDangerZone({ customerId, customerName, hasHistory }: Cus
           </button>
         </div>
 
-        {/* Delete — blocked if customer has any history */}
+        {/* Delete */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-700">Delete permanently</p>
@@ -76,7 +76,7 @@ export function CustomerDangerZone({ customerId, customerName, hasHistory }: Cus
                 <Lock className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-amber-700 leading-relaxed">
                   This customer has invoice or payment history and <strong>cannot be permanently deleted</strong>.
-                  Financial records must be retained for audit and compliance. Use <strong>Deactivate</strong> instead.
+                  Use <strong>Deactivate</strong> instead.
                 </p>
               </div>
             ) : (
