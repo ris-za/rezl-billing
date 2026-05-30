@@ -22,7 +22,7 @@ export default async function NewCustomerPage() {
   if (role !== 'admin' && role !== 'user') redirect('/customers')
 
   return (
-    <div className="p-8 max-w-[1400px]">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
       <div className="mb-8">
         <Link href="/customers" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors">
           <ArrowLeft className="w-3.5 h-3.5" />

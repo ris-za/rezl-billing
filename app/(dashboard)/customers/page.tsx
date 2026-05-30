@@ -31,7 +31,7 @@ export default async function CustomersPage() {
   const typedInactive = inactiveCustomers as Customer[] | null
 
   return (
-    <div className="p-8 max-w-[1400px]">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -50,7 +50,7 @@ export default async function CustomersPage() {
       </div>
 
       {/* Active customers table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
         {!typedCustomers || typedCustomers.length === 0 ? (
           <div className="py-16 text-center">
             <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -62,7 +62,7 @@ export default async function CustomersPage() {
             )}
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr style={{ background: '#f8f9fc' }}>
                 <th className="text-left py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>

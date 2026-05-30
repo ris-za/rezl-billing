@@ -13,7 +13,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Users, Zap, Receipt, BarChart3, LogOut, ChevronRight, UserCog } from 'lucide-react'
+import { LayoutDashboard, Users, Zap, Receipt, BarChart3, LogOut, ChevronRight, UserCog, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 // adminOnly: only admins see it
@@ -27,7 +27,7 @@ const navItems = [
   { href: '/users',     label: 'Users',       icon: UserCog,         adminOnly: true,  editOnly: false },
 ]
 
-export function Sidebar({ role }: { role?: string }) {
+export function Sidebar({ role, onClose }: { role?: string; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -49,7 +49,7 @@ export function Sidebar({ role }: { role?: string }) {
       }}
     >
       {/* Brand */}
-      <div className="px-5 py-5 border-b" style={{ borderColor: '#2e3554' }}>
+      <div className="px-5 py-5 border-b flex items-center justify-between" style={{ borderColor: '#2e3554' }}>
         <Image
           src="/logowhite.png"
           alt="N-POWER"
@@ -59,6 +59,17 @@ export function Sidebar({ role }: { role?: string }) {
           style={{ width: 'auto', height: '30px', objectFit: 'contain' }}
           priority
         />
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg transition-colors"
+            style={{ color: '#4a5180' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#4a5180')}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -80,6 +91,7 @@ export function Sidebar({ role }: { role?: string }) {
             <Link
               key={href}
               href={href}
+              onClick={onClose}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 border',
                 active

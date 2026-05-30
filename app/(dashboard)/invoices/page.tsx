@@ -30,7 +30,7 @@ export default async function InvoicesPage() {
   const typedInvoices = (invoices as InvoiceWithCustomer[] | null) ?? []
 
   return (
-    <div className="p-8 max-w-[1400px]">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>

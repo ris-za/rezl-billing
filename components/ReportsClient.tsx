@@ -638,7 +638,7 @@ export function ReportsClient({
   const hasFilters = dateFrom || dateTo || statusFilter !== 'all'
 
   return (
-    <div className="p-8 max-w-[1400px] space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] space-y-4 sm:space-y-6">
 
       {/* ═══ HERO ═══ */}
       <div
@@ -649,11 +649,11 @@ export function ReportsClient({
           backgroundPosition: 'center',
         }}
       >
-        <div className="px-8 py-7">
-          <div className="flex items-start justify-between mb-7">
+        <div className="px-4 sm:px-8 py-5 sm:py-7">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5 sm:mb-7">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: '#6b7db3' }}>Analytics</p>
-              <h1 className="text-3xl font-black text-white tracking-tight">Reports</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Reports</h1>
               <p className="text-sm mt-1" style={{ color: '#4f5e8a' }}>
                 {format(new Date(), 'EEEE, MMMM d, yyyy')}
               </p>
@@ -681,7 +681,7 @@ export function ReportsClient({
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="rounded-xl p-4" style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.2)' }}>
               <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#4ade80' }}>Total Billed</p>
               <p className="text-2xl font-black text-white tabular-nums">{formatUSD(totalBilled)}</p>
@@ -703,7 +703,7 @@ export function ReportsClient({
       </div>
 
       {/* ═══ REPORT TYPE SELECTOR ═══ */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {reportTypes.map(({ id, title, desc, icon: Icon }) => {
           const active = reportType === id
           const isAlert = id === 'outstanding'

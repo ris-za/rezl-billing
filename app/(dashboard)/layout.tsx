@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Sidebar } from '@/components/Sidebar'
+import { DashboardShell } from '@/components/DashboardShell'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -28,11 +28,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#f4f6fa' }}>
-      <div className="print:hidden">
-        <Sidebar role={role} />
-      </div>
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
+    <DashboardShell role={role}>
+      {children}
+    </DashboardShell>
   )
 }

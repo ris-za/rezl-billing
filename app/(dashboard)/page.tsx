@@ -71,7 +71,7 @@ export default async function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="p-8 max-w-[1400px] space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] space-y-4 sm:space-y-6">
 
       {/* ═══ HERO BANNER ═══ */}
       <div
@@ -87,12 +87,12 @@ export default async function DashboardPage() {
         <div style={{ position:'absolute', top:20, right:180, width:140, height:140, borderRadius:'50%', background:'rgba(22,163,74,0.05)', pointerEvents:'none' }} />
         <div style={{ position:'absolute', bottom:-40, left:-40, width:180, height:180, borderRadius:'50%', background:'rgba(255,255,255,0.03)', pointerEvents:'none' }} />
 
-        <div className="relative px-8 pt-8 pb-6">
+        <div className="relative px-4 sm:px-8 pt-6 sm:pt-8 pb-5 sm:pb-6">
           {/* Top row: greeting + CTA */}
-          <div className="flex items-start justify-between mb-8">
+          <div className="flex items-start justify-between gap-4 mb-6 sm:mb-8">
             <div>
               <p className="text-sm font-medium mb-1" style={{ color:'#6b7db3' }}>{greeting}</p>
-              <h1 className="text-3xl font-black text-white tracking-tight">Dashboard</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Dashboard</h1>
               <p className="text-sm mt-1" style={{ color:'#4f5e8a' }}>
                 {format(new Date(), 'EEEE, MMMM d, yyyy')}
               </p>
@@ -110,7 +110,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Key metrics — 4 cards */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
             {/* Power Sold */}
             <div className="rounded-xl p-5" style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }}>
               <div className="flex items-center gap-2 mb-3">
@@ -231,9 +231,9 @@ export default async function DashboardPage() {
             )}
           </div>
         ) : (
-          <div>
+          <div className="overflow-x-auto">
             {/* Table header */}
-            <div className="grid grid-cols-6 px-7 py-3 border-b border-gray-100" style={{ background:'#fafbfc' }}>
+            <div className="grid grid-cols-6 px-7 py-3 border-b border-gray-100 min-w-[560px]" style={{ background:'#fafbfc' }}>
               {['Invoice', 'Customer', 'Period', 'Amount', 'Status', 'Date'].map((h, i) => (
                 <p key={h} className={`text-xs font-bold text-gray-400 uppercase tracking-widest ${i === 3 ? 'text-right' : ''}`}>{h}</p>
               ))}
@@ -245,7 +245,7 @@ export default async function DashboardPage() {
               return (
                 <div
                   key={inv.id}
-                  className="grid grid-cols-6 px-7 py-4 items-center hover:bg-gray-50 transition-colors"
+                  className="grid grid-cols-6 px-7 py-4 items-center hover:bg-gray-50 transition-colors min-w-[560px]"
                   style={{ borderTop: idx > 0 ? '1px solid #f3f4f6' : 'none' }}
                 >
                   <div>
