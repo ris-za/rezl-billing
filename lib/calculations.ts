@@ -11,7 +11,7 @@ export const VAT_RATE = 0.16
 export function calculateInvoice(consumptionKwh: number, tariffRate: number) {
   const subtotal = consumptionKwh * tariffRate
   const electricityLevy = subtotal * ELECTRICITY_LEVY_RATE
-  const vat = subtotal * VAT_RATE
+  const vat = (subtotal + electricityLevy) * VAT_RATE
   const total = subtotal + electricityLevy + vat
   return { subtotal, electricityLevy, vat, total }
 }
