@@ -16,10 +16,11 @@ import Link from 'next/link'
 import type { Customer, InvoiceWithCustomer } from '@/types'
 
 const statusConfig: Record<string, { label: string; className: string }> = {
-  paid:    { label: 'Paid',    className: 'bg-green-100 text-green-700' },
-  issued:  { label: 'Issued',  className: 'bg-gray-100 text-gray-600' },
-  overdue: { label: 'Overdue', className: 'bg-red-100 text-red-700' },
-  draft:   { label: 'Draft',   className: 'bg-gray-100 text-gray-500' },
+  paid:      { label: 'Paid',      className: 'bg-green-100 text-green-700' },
+  issued:    { label: 'Issued',    className: 'bg-gray-100 text-gray-600' },
+  overdue:   { label: 'Overdue',   className: 'bg-red-100 text-red-700' },
+  draft:     { label: 'Draft',     className: 'bg-gray-100 text-gray-500' },
+  cancelled: { label: 'Cancelled', className: 'bg-red-50 text-red-500' },
 }
 
 export default async function DashboardPage() {
@@ -40,10 +41,10 @@ export default async function DashboardPage() {
     { data: profile },
   ] = await Promise.all([
     admin.from('customers').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    admin.from('invoices').select('*', { count: 'exact', head: true }),
+    admin.from('invoices').select('*', { count: 'exact', head: true }).neq('status', 'cancelled'),
     admin.from('invoices').select('*, customers(*)').order('created_at', { ascending: false }).limit(8),
     admin.from('customers').select('*').eq('is_active', true),
-    admin.from('invoices').select('total, consumption_kwh'),
+    admin.from('invoices').select('total, consumption_kwh').neq('status', 'cancelled'),
     admin.from('payments').select('amount'),
     admin.from('profiles').select('role').eq('id', user.id).single(),
   ])

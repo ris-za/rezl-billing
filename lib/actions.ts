@@ -24,14 +24,15 @@ async function getSessionWithRole() {
   const admin = createAdminClient()
   const { data: profile } = await admin
     .from('profiles')
-    .select('role')
+    .select('role, full_name')
     .eq('id', user.id)
     .single()
 
   const role = profile?.role ?? 'viewer'
+  const fullName = profile?.full_name ?? user.email ?? 'Unknown user'
   // Use admin client for all DB ops — auth is enforced above, bypassing
   // the recursive RLS policy that causes "infinite recursion" errors.
-  return { supabase: admin, user, role }
+  return { supabase: admin, user, role, fullName }
 }
 
 // ─────────────────────────────────────────────
@@ -214,14 +215,117 @@ export async function createInvoice(formData: FormData): Promise<{ error?: strin
 
 export async function updateInvoiceStatus(id: string, status: string): Promise<{ error?: string }> {
   try {
-    const { supabase, role } = await getSessionWithRole()
+    const { supabase, user, role, fullName } = await getSessionWithRole()
     if (role !== 'admin' && role !== 'user') return { error: 'Unauthorized' }
+
+    // Cancellation has its own flow (cancelInvoice) so a reason is always captured
+    if (!['draft', 'issued', 'paid', 'overdue'].includes(status)) return { error: 'Invalid status' }
+
+    const { data: current } = await supabase.from('invoices').select('status').eq('id', id).single()
+    if (!current) return { error: 'Invoice not found' }
+    if (current.status === 'cancelled') return { error: 'This invoice is cancelled. Reinstate it first to change its status.' }
+    if (current.status === status) return {}
 
     const { error } = await supabase.from('invoices').update({ status }).eq('id', id)
     if (error) return { error: error.message }
 
+    await supabase.from('invoice_audit_log').insert({
+      invoice_id:        id,
+      action:            'status_change',
+      from_status:       current.status,
+      to_status:         status,
+      performed_by:      user.id,
+      performed_by_name: fullName,
+    })
+
     revalidatePath('/invoices')
     revalidatePath(`/invoices/${id}`)
+    return {}
+  } catch (e: any) {
+    return { error: e?.message ?? 'Something went wrong' }
+  }
+}
+
+export async function cancelInvoice(id: string, reason: string): Promise<{ error?: string }> {
+  try {
+    const { supabase, user, role, fullName } = await getSessionWithRole()
+    if (role !== 'admin') return { error: 'Only admins can cancel invoices' }
+
+    const trimmedReason = reason?.trim()
+    if (!trimmedReason) return { error: 'A cancellation reason is required' }
+
+    const { data: invoice } = await supabase.from('invoices').select('status, customer_id').eq('id', id).single()
+    if (!invoice) return { error: 'Invoice not found' }
+    if (invoice.status === 'cancelled') return { error: 'This invoice is already cancelled' }
+
+    const { count: paymentCount } = await supabase
+      .from('payments').select('*', { count: 'exact', head: true }).eq('invoice_id', id)
+    if ((paymentCount ?? 0) > 0) {
+      return { error: 'This invoice has payments recorded against it. Remove the payments first, then cancel.' }
+    }
+
+    const { error } = await supabase.from('invoices').update({
+      status:              'cancelled',
+      cancelled_at:        new Date().toISOString(),
+      cancelled_by:        user.id,
+      cancellation_reason: trimmedReason,
+    }).eq('id', id)
+    if (error) return { error: error.message }
+
+    await supabase.from('invoice_audit_log').insert({
+      invoice_id:        id,
+      action:            'cancelled',
+      from_status:       invoice.status,
+      to_status:         'cancelled',
+      reason:            trimmedReason,
+      performed_by:      user.id,
+      performed_by_name: fullName,
+    })
+
+    revalidatePath('/invoices')
+    revalidatePath(`/invoices/${id}`)
+    revalidatePath(`/customers/${invoice.customer_id}`)
+    revalidatePath(`/customers/${invoice.customer_id}/statement`)
+    revalidatePath('/reports')
+    revalidatePath('/')
+    return {}
+  } catch (e: any) {
+    return { error: e?.message ?? 'Something went wrong' }
+  }
+}
+
+export async function reinstateInvoice(id: string): Promise<{ error?: string }> {
+  try {
+    const { supabase, user, role, fullName } = await getSessionWithRole()
+    if (role !== 'admin') return { error: 'Only admins can reinstate invoices' }
+
+    const { data: invoice } = await supabase.from('invoices').select('status, customer_id').eq('id', id).single()
+    if (!invoice) return { error: 'Invoice not found' }
+    if (invoice.status !== 'cancelled') return { error: 'Only cancelled invoices can be reinstated' }
+
+    const { error } = await supabase.from('invoices').update({
+      status:              'issued',
+      cancelled_at:        null,
+      cancelled_by:        null,
+      cancellation_reason: null,
+    }).eq('id', id)
+    if (error) return { error: error.message }
+
+    await supabase.from('invoice_audit_log').insert({
+      invoice_id:        id,
+      action:            'reinstated',
+      from_status:       'cancelled',
+      to_status:         'issued',
+      performed_by:      user.id,
+      performed_by_name: fullName,
+    })
+
+    revalidatePath('/invoices')
+    revalidatePath(`/invoices/${id}`)
+    revalidatePath(`/customers/${invoice.customer_id}`)
+    revalidatePath(`/customers/${invoice.customer_id}/statement`)
+    revalidatePath('/reports')
+    revalidatePath('/')
     return {}
   } catch (e: any) {
     return { error: e?.message ?? 'Something went wrong' }
@@ -245,6 +349,11 @@ export async function recordPayment(formData: FormData): Promise<{ error?: strin
     const notes       = formData.get('notes') as string || null
 
     if (!customerId || isNaN(amount) || !paymentDate) return { error: 'Missing required fields' }
+
+    if (invoiceId) {
+      const { data: inv } = await supabase.from('invoices').select('status').eq('id', invoiceId).single()
+      if (inv?.status === 'cancelled') return { error: 'This invoice is cancelled. Payments cannot be recorded against it.' }
+    }
 
     const { error } = await supabase.from('payments').insert({
       invoice_id:      invoiceId,

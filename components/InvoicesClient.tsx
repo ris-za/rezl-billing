@@ -11,16 +11,17 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Search, Receipt, Archive, Zap, X } from 'lucide-react'
+import { Search, Receipt, Archive, Zap, X, Ban } from 'lucide-react'
 import { formatUSD } from '@/lib/calculations'
 import type { InvoiceWithCustomer } from '@/types'
 
 function StatusPill({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    paid:    'bg-green-100 text-green-700',
-    issued:  'bg-blue-100 text-blue-700',
-    overdue: 'bg-red-100 text-red-700',
-    draft:   'bg-gray-100 text-gray-600',
+    paid:      'bg-green-100 text-green-700',
+    issued:    'bg-blue-100 text-blue-700',
+    overdue:   'bg-red-100 text-red-700',
+    draft:     'bg-gray-100 text-gray-600',
+    cancelled: 'bg-red-50 text-red-500 line-through',
   }
   return (
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${styles[status] ?? styles.draft}`}>
@@ -35,13 +36,14 @@ interface Props {
 }
 
 export function InvoicesClient({ invoices, isAdmin }: Props) {
-  const [tab, setTab]       = useState<'active' | 'archive'>('active')
+  const [tab, setTab]       = useState<'active' | 'archive' | 'cancelled'>('active')
   const [search, setSearch] = useState('')
 
-  const active  = invoices.filter(i => i.status !== 'paid')
-  const archive = invoices.filter(i => i.status === 'paid')
+  const active    = invoices.filter(i => i.status !== 'paid' && i.status !== 'cancelled')
+  const archive   = invoices.filter(i => i.status === 'paid')
+  const cancelled = invoices.filter(i => i.status === 'cancelled')
 
-  const baseList = tab === 'active' ? active : archive
+  const baseList = tab === 'active' ? active : tab === 'archive' ? archive : cancelled
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -85,6 +87,7 @@ export function InvoicesClient({ invoices, isAdmin }: Props) {
             style={{
               background: tab === 'archive' ? '#fff' : 'transparent',
               color: tab === 'archive' ? '#111827' : '#9ca3af',
+              borderRight: '1px solid #e5e7eb',
               boxShadow: tab === 'archive' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
             }}
           >
@@ -95,6 +98,24 @@ export function InvoicesClient({ invoices, isAdmin }: Props) {
               style={{ background: tab === 'archive' ? '#f0fdf4' : '#e5e7eb', color: tab === 'archive' ? '#16a34a' : '#9ca3af' }}
             >
               {archive.length}
+            </span>
+          </button>
+          <button
+            onClick={() => { setTab('cancelled'); setSearch('') }}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all"
+            style={{
+              background: tab === 'cancelled' ? '#fff' : 'transparent',
+              color: tab === 'cancelled' ? '#111827' : '#9ca3af',
+              boxShadow: tab === 'cancelled' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+            }}
+          >
+            <Ban className="w-4 h-4" />
+            Cancelled
+            <span
+              className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold"
+              style={{ background: tab === 'cancelled' ? '#fef2f2' : '#e5e7eb', color: tab === 'cancelled' ? '#dc2626' : '#9ca3af' }}
+            >
+              {cancelled.length}
             </span>
           </button>
         </div>
@@ -139,6 +160,14 @@ export function InvoicesClient({ invoices, isAdmin }: Props) {
           </div>
         )}
 
+        {/* Cancelled banner */}
+        {tab === 'cancelled' && (
+          <div className="flex items-center gap-2 px-6 py-3 text-xs text-red-700 font-medium" style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca' }}>
+            <Ban className="w-3.5 h-3.5" />
+            Cancelled invoices are kept on record with an audit trail and are excluded from revenue totals
+          </div>
+        )}
+
         {filtered.length === 0 ? (
           <div className="py-16 text-center">
             {search ? (
@@ -152,6 +181,12 @@ export function InvoicesClient({ invoices, isAdmin }: Props) {
                 <Archive className="w-10 h-10 text-gray-200 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-500">No paid invoices yet</p>
                 <p className="text-xs text-gray-400 mt-1">Fully paid invoices will appear here automatically</p>
+              </>
+            ) : tab === 'cancelled' ? (
+              <>
+                <Ban className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-sm font-medium text-gray-500">No cancelled invoices</p>
+                <p className="text-xs text-gray-400 mt-1">Invoices cancelled by an admin will appear here</p>
               </>
             ) : (
               <>
@@ -183,7 +218,7 @@ export function InvoicesClient({ invoices, isAdmin }: Props) {
                 <tr
                   key={inv.id}
                   className="border-t border-gray-100 hover:bg-gray-50 transition-colors"
-                  style={tab === 'archive' ? { opacity: 0.75 } : {}}
+                  style={tab !== 'active' ? { opacity: 0.75 } : {}}
                 >
                   <td className="py-3.5 px-6">
                     <Link href={`/invoices/${inv.id}`} className="font-semibold text-primary hover:underline">

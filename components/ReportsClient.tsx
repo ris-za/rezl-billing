@@ -49,10 +49,11 @@ const reportTypes = [
 const statusBadge = (val: string) => {
   const lower = val.toLowerCase()
   const cls =
-    lower === 'paid'    ? 'bg-green-100 text-green-700' :
-    lower === 'overdue' ? 'bg-red-100 text-red-700'     :
-    lower === 'issued'  ? 'bg-gray-100 text-gray-600'   :
-                          'bg-gray-100 text-gray-500'
+    lower === 'paid'      ? 'bg-green-100 text-green-700'      :
+    lower === 'overdue'   ? 'bg-red-100 text-red-700'          :
+    lower === 'issued'    ? 'bg-gray-100 text-gray-600'        :
+    lower === 'cancelled' ? 'bg-red-50 text-red-500 line-through' :
+                            'bg-gray-100 text-gray-500'
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
       {val}
@@ -119,9 +120,12 @@ export function ReportsClient({
     }),
   [filtered, paidByInvoice])
 
+  /* cancelled invoices stay visible in the invoice register but never count toward money totals */
+  const billable = useMemo(() => filtered.filter((i) => i.status !== 'cancelled'), [filtered])
+
   const revenueRows = useMemo(() => {
     const map: Record<string, { billed: number; paid: number; count: number }> = {}
-    filtered.forEach((inv) => {
+    billable.forEach((inv) => {
       if (!map[inv.billing_period]) map[inv.billing_period] = { billed: 0, paid: 0, count: 0 }
       map[inv.billing_period].billed += inv.total
       map[inv.billing_period].count  += 1
@@ -136,12 +140,12 @@ export function ReportsClient({
         formatUSD(v.paid),
         formatUSD(Math.max(0, v.billed - v.paid)),
       ])
-  }, [filtered, paidByInvoice])
+  }, [billable, paidByInvoice])
 
   const customerRows = useMemo(() =>
     customers
       .map((c) => {
-        const ci = filtered.filter((i) => i.customer_id === c.id)
+        const ci = billable.filter((i) => i.customer_id === c.id)
         if (!ci.length) return null
         const billed = ci.reduce((s, i) => s + i.total, 0)
         const paid   = ci.reduce((s, i) => s + (paidByInvoice[i.id] ?? 0), 0)
@@ -156,7 +160,7 @@ export function ReportsClient({
         ]
       })
       .filter(Boolean) as string[][],
-  [filtered, customers, paidByInvoice])
+  [billable, customers, paidByInvoice])
 
   const outstandingRows = useMemo(() =>
     filtered
@@ -218,9 +222,9 @@ export function ReportsClient({
     }
   }, [reportType, invoiceRows, revenueRows, customerRows, outstandingRows])
 
-  /* ── summary stats (payment-based, not status-based) ── */
-  const totalBilled      = filtered.reduce((s, i) => s + i.total, 0)
-  const totalPaid        = filtered.reduce((s, i) => s + (paidByInvoice[i.id] ?? 0), 0)
+  /* ── summary stats (payment-based, not status-based; cancelled invoices excluded) ── */
+  const totalBilled      = billable.reduce((s, i) => s + i.total, 0)
+  const totalPaid        = billable.reduce((s, i) => s + (paidByInvoice[i.id] ?? 0), 0)
   const totalOutstanding = Math.max(0, totalBilled - totalPaid)
 
   /* ── Excel export ── */
@@ -779,6 +783,7 @@ export function ReportsClient({
                 <option value="issued">Issued</option>
                 <option value="overdue">Overdue</option>
                 <option value="draft">Draft</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
           )}

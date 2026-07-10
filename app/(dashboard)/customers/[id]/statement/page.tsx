@@ -28,7 +28,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
 
   const [{ data: customer }, { data: invoicesRaw }, { data: paymentsRaw }] = await Promise.all([
     admin.from('customers').select('*').eq('id', id).single(),
-    admin.from('invoices').select('*').eq('customer_id', id).order('billing_month', { ascending: true }),
+    admin.from('invoices').select('*').eq('customer_id', id).neq('status', 'cancelled').order('billing_month', { ascending: true }),
     admin.from('payments').select('*').eq('customer_id', id).order('payment_date', { ascending: true }),
   ])
 

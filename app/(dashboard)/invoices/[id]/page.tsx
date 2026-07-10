@@ -14,16 +14,24 @@ import { format } from 'date-fns'
 import { InvoiceStatusActions } from '@/components/InvoiceStatusActions'
 import { PrintButton } from '@/components/PrintButton'
 import { RecordPaymentButton } from '@/components/RecordPaymentButton'
+import { CancelInvoiceButton } from '@/components/CancelInvoiceButton'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft } from 'lucide-react'
-import type { Payment } from '@/types'
+import { ArrowLeft, Ban, History } from 'lucide-react'
+import type { Payment, InvoiceAuditEntry } from '@/types'
 
 const statusStyles: Record<string, string> = {
-  issued: 'bg-green-50 text-green-600 border border-green-200',
-  paid:   'bg-green-50 text-green-600 border border-green-200',
-  overdue:'bg-red-50 text-red-500 border border-red-200',
-  draft:  'bg-gray-100 text-gray-400 border border-gray-200',
+  issued:    'bg-green-50 text-green-600 border border-green-200',
+  paid:      'bg-green-50 text-green-600 border border-green-200',
+  overdue:   'bg-red-50 text-red-500 border border-red-200',
+  draft:     'bg-gray-100 text-gray-400 border border-gray-200',
+  cancelled: 'bg-red-50 text-red-600 border border-red-200',
+}
+
+const auditActionLabels: Record<string, string> = {
+  status_change: 'Status changed',
+  cancelled:     'Invoice cancelled',
+  reinstated:    'Invoice reinstated',
 }
 
 export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,14 +44,18 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const isAdmin = role === 'admin'
   const canEdit = role === 'admin' || role === 'user'
 
-  const [{ data: invoice }, { data: paymentsRaw }] = await Promise.all([
+  const [{ data: invoice }, { data: paymentsRaw }, { data: auditRaw }] = await Promise.all([
     admin.from('invoices').select('*, customers(*)').eq('id', id).single(),
     admin.from('payments').select('*').eq('invoice_id', id).order('payment_date', { ascending: true }),
+    admin.from('invoice_audit_log').select('*').eq('invoice_id', id).order('performed_at', { ascending: false }),
   ])
 
   if (!invoice) notFound()
-  const customer = invoice.customers
-  const payments = (paymentsRaw ?? []) as Payment[]
+  const customer    = invoice.customers
+  const payments    = (paymentsRaw ?? []) as Payment[]
+  const auditTrail  = (auditRaw ?? []) as InvoiceAuditEntry[]
+  const isCancelled = invoice.status === 'cancelled'
+  const cancelledEntry = auditTrail.find(e => e.action === 'cancelled')
 
   return (
     <div
@@ -60,21 +72,69 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-normal ${statusStyles[invoice.status] ?? statusStyles.draft}`}>
             {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
           </span>
-          {canEdit && <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} />}
+          {canEdit && !isCancelled && <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} />}
+          {isAdmin && (
+            <CancelInvoiceButton
+              invoiceId={invoice.id}
+              invoiceNumber={invoice.invoice_number}
+              isCancelled={isCancelled}
+            />
+          )}
           <PrintButton invoiceNumber={invoice.invoice_number} />
         </div>
       </div>
 
+      {/* Cancelled banner */}
+      {isCancelled && (
+        <div
+          className="mx-auto mb-5 rounded-xl px-5 py-4 flex items-start gap-3 print:hidden"
+          style={{ maxWidth: '780px', background: '#fef2f2', border: '1px solid #fecaca' }}
+        >
+          <Ban className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#dc2626' }} />
+          <div className="text-xs leading-relaxed">
+            <p className="font-semibold text-red-700 text-sm mb-0.5">This invoice has been cancelled</p>
+            <p className="text-red-600">
+              {invoice.cancellation_reason && <>Reason: {invoice.cancellation_reason}. </>}
+              {cancelledEntry?.performed_by_name && <>Cancelled by {cancelledEntry.performed_by_name}</>}
+              {invoice.cancelled_at && <> on {format(new Date(invoice.cancelled_at), 'dd MMM yyyy, HH:mm')}</>}.
+              It is excluded from revenue totals and customer statements but remains on record.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Invoice Document */}
       <div
         id="invoice-document"
-        className="bg-white mx-auto overflow-hidden print:shadow-none print:max-w-none"
+        className="bg-white mx-auto overflow-hidden print:shadow-none print:max-w-none relative"
         style={{
           maxWidth: '780px',
           border: '1px solid #d1d5db',
           boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
         }}
       >
+        {/* CANCELLED watermark, shown on screen and in print */}
+        {isCancelled && (
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{ zIndex: 10 }}
+          >
+            <span
+              className="font-black uppercase select-none"
+              style={{
+                fontSize: '90px',
+                letterSpacing: '0.15em',
+                color: 'rgba(220,38,38,0.13)',
+                transform: 'rotate(-28deg)',
+                border: '6px solid rgba(220,38,38,0.13)',
+                padding: '4px 32px',
+                borderRadius: '12px',
+              }}
+            >
+              Cancelled
+            </span>
+          </div>
+        )}
         {/* Top accent line */}
         <div style={{ height: 4, background: 'linear-gradient(90deg,#16a34a,#22c55e,#16a34a)' }} />
 
@@ -288,29 +348,70 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* ── PAYMENTS SECTION (screen only) ── */}
-      <div className="print:hidden mx-auto mt-5 pb-10" style={{ maxWidth: '780px' }}>
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-gray-100">
-            <div>
-              <h3 className="font-bold text-gray-900 text-sm">Payments Received</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Track payments against this invoice</p>
+      {!isCancelled && (
+        <div className="print:hidden mx-auto mt-5" style={{ maxWidth: '780px' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-5 pb-4 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">Payments Received</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Track payments against this invoice</p>
+              </div>
+              <Link
+                href={`/customers/${customer.id}/statement`}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                View Full Statement
+              </Link>
             </div>
-            <Link
-              href={`/customers/${customer.id}/statement`}
-              className="text-xs text-primary font-semibold hover:underline"
-            >
-              View Full Statement →
-            </Link>
+            <RecordPaymentButton
+              invoiceId={invoice.id}
+              customerId={customer.id}
+              invoiceTotal={invoice.total}
+              payments={payments}
+              isAdmin={canEdit}
+            />
           </div>
-          <RecordPaymentButton
-            invoiceId={invoice.id}
-            customerId={customer.id}
-            invoiceTotal={invoice.total}
-            payments={payments}
-            isAdmin={canEdit}
-          />
         </div>
-      </div>
+      )}
+
+      {/* ── AUDIT TRAIL (screen only, admins) ── */}
+      {isAdmin && auditTrail.length > 0 && (
+        <div className="print:hidden mx-auto mt-5 pb-10" style={{ maxWidth: '780px' }}>
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-5 pb-4 border-b border-gray-100">
+              <History className="w-4 h-4 text-gray-400" />
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">Audit Trail</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Every status change on this invoice, most recent first</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {auditTrail.map((entry) => (
+                <div key={entry.id} className="flex items-start gap-3">
+                  <div
+                    className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
+                    style={{ background: entry.action === 'cancelled' ? '#dc2626' : entry.action === 'reinstated' ? '#16a34a' : '#9ca3af' }}
+                  />
+                  <div className="text-xs leading-relaxed">
+                    <p className="font-semibold text-gray-800">
+                      {auditActionLabels[entry.action] ?? entry.action}
+                      {entry.from_status && entry.to_status && (
+                        <span className="font-normal text-gray-500">
+                          {' '}from {entry.from_status.charAt(0).toUpperCase() + entry.from_status.slice(1)} to {entry.to_status.charAt(0).toUpperCase() + entry.to_status.slice(1)}
+                        </span>
+                      )}
+                    </p>
+                    {entry.reason && <p className="text-gray-500 mt-0.5">Reason: {entry.reason}</p>}
+                    <p className="text-gray-400 mt-0.5">
+                      {entry.performed_by_name ?? 'Unknown user'} · {format(new Date(entry.performed_at), 'dd MMM yyyy, HH:mm')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

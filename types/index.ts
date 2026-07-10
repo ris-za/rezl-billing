@@ -43,10 +43,25 @@ export interface Invoice {
   vat: number
   total: number
   due_date: string | null
-  status: 'draft' | 'issued' | 'paid' | 'overdue'
+  status: 'draft' | 'issued' | 'paid' | 'overdue' | 'cancelled'
   notes: string | null
+  cancelled_at: string | null
+  cancelled_by: string | null
+  cancellation_reason: string | null
   created_at: string
   created_by: string | null
+}
+
+export interface InvoiceAuditEntry {
+  id: string
+  invoice_id: string
+  action: 'status_change' | 'cancelled' | 'reinstated'
+  from_status: string | null
+  to_status: string | null
+  reason: string | null
+  performed_by: string | null
+  performed_by_name: string | null
+  performed_at: string
 }
 
 export interface InvoiceWithCustomer extends Invoice {
