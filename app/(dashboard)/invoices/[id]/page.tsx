@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
-import { formatUSD } from '@/lib/calculations'
+import { formatUSD, creditBroughtForward } from '@/lib/calculations'
 import { format } from 'date-fns'
 import { InvoiceStatusActions } from '@/components/InvoiceStatusActions'
 import { PrintButton } from '@/components/PrintButton'
@@ -56,6 +56,17 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const auditTrail  = (auditRaw ?? []) as InvoiceAuditEntry[]
   const isCancelled = invoice.status === 'cancelled'
   const cancelledEntry = auditTrail.find(e => e.action === 'cancelled')
+
+  // Account ledger for this customer, used to bring forward any credit from
+  // overpayments onto this invoice. Cancelled invoices are excluded.
+  const [{ data: allInvoicesRaw }, { data: allPaymentsRaw }] = await Promise.all([
+    admin.from('invoices').select('id, total, billing_month, status').eq('customer_id', customer.id),
+    admin.from('payments').select('amount, payment_date, invoice_id').eq('customer_id', customer.id),
+  ])
+  const creditBF     = isCancelled ? 0 : creditBroughtForward(id, allInvoicesRaw ?? [], allPaymentsRaw ?? [])
+  const creditApplied = Math.min(creditBF, invoice.total)
+  const netAmountDue  = Math.max(0, invoice.total - creditBF)
+  const hasCredit     = creditApplied > 0.001
 
   return (
     <div
@@ -265,11 +276,28 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                     <span className="font-normal text-gray-600 tabular-nums text-xs">{value}</span>
                   </div>
                 ))}
+                {hasCredit && (
+                  <>
+                    <div className="flex justify-between items-center px-5 py-3 border-b" style={{ background: '#fafafa', borderColor: '#f0f0f0' }}>
+                      <span className="font-normal text-gray-600 text-xs">Invoice Total</span>
+                      <span className="font-normal text-gray-700 tabular-nums text-xs">{formatUSD(invoice.total)}</span>
+                    </div>
+                    <div className="flex justify-between items-center px-5 py-3 border-b" style={{ background: '#f0fdf4', borderColor: '#dcfce7' }}>
+                      <span className="font-light text-green-700 text-xs">Less: Credit brought forward</span>
+                      <span className="font-normal text-green-700 tabular-nums text-xs">- {formatUSD(creditApplied)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between items-center px-5 py-4" style={{ background: '#1e2235' }}>
-                  <span className="font-normal text-white tracking-wider text-xs">TOTAL DUE</span>
-                  <span className="font-semibold text-white tabular-nums text-lg">{formatUSD(invoice.total)}</span>
+                  <span className="font-normal text-white tracking-wider text-xs">{hasCredit ? 'NET AMOUNT DUE' : 'TOTAL DUE'}</span>
+                  <span className="font-semibold text-white tabular-nums text-lg">{formatUSD(hasCredit ? netAmountDue : invoice.total)}</span>
                 </div>
               </div>
+              {creditBF > invoice.total + 0.001 && (
+                <p className="text-right text-green-700 mt-2" style={{ fontSize: '10px' }}>
+                  Remaining credit of {formatUSD(creditBF - invoice.total)} carries to the next invoice.
+                </p>
+              )}
             </div>
           </div>
 
@@ -367,6 +395,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               invoiceId={invoice.id}
               customerId={customer.id}
               invoiceTotal={invoice.total}
+              creditBroughtForward={creditApplied}
               payments={payments}
               isAdmin={canEdit}
             />

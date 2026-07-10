@@ -30,39 +30,49 @@ interface Props {
   invoiceId: string
   customerId: string
   invoiceTotal: number
+  creditBroughtForward?: number
   payments: Payment[]
   isAdmin: boolean
 }
 
-export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payments, isAdmin }: Props) {
+export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, creditBroughtForward = 0, payments, isAdmin }: Props) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [deleting, setDeleting] = useState<string | null>(null)
   const [amountVal, setAmountVal] = useState('')
   const [amountError, setAmountError] = useState('')
+  const [overpayNote, setOverpayNote] = useState('')
 
   const totalPaid = payments.reduce((s, p) => s + p.amount, 0)
-  const outstanding = invoiceTotal - totalPaid
+  // Credit brought forward from earlier overpayments already covers part of
+  // this invoice, so the customer only needs to settle the remainder.
+  const outstanding = invoiceTotal - creditBroughtForward - totalPaid
   const isSettled = outstanding <= 0.001
 
   function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value
     setAmountVal(val)
     const num = parseFloat(val)
+    setOverpayNote('')
     if (!val || isNaN(num)) {
       setAmountError('')
     } else if (num <= 0) {
       setAmountError('Amount must be greater than zero.')
-    } else if (num > outstanding + 0.001) {
-      setAmountError(`Exceeds outstanding balance of $${fmt(outstanding)}.`)
     } else {
       setAmountError('')
+      // Overpayment is allowed; the surplus becomes account credit that is
+      // carried forward onto the next invoice.
+      if (num > outstanding + 0.001) {
+        const surplus = num - Math.max(0, outstanding)
+        setOverpayNote(`This is $${fmt(surplus)} more than the balance. The extra will be saved as account credit and brought forward to the next invoice.`)
+      }
     }
   }
 
   function handleOpen() {
     setAmountVal('')
     setAmountError('')
+    setOverpayNote('')
     setOpen(true)
   }
 
@@ -71,10 +81,6 @@ export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payme
     const num = parseFloat(amountVal)
     if (!amountVal || isNaN(num) || num <= 0) {
       setAmountError('Please enter a valid amount.')
-      return
-    }
-    if (num > outstanding + 0.001) {
-      setAmountError(`Exceeds outstanding balance of $${fmt(outstanding)}.`)
       return
     }
     const fd = new FormData(e.currentTarget)
@@ -110,6 +116,15 @@ export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payme
             <span className="text-xs text-gray-400 block leading-none mb-0.5">Invoice Total</span>
             <span className="font-bold text-gray-800">${fmt(invoiceTotal)}</span>
           </div>
+          {creditBroughtForward > 0.001 && (
+            <>
+              <div className="w-px h-8 bg-gray-200" />
+              <div>
+                <span className="text-xs text-gray-400 block leading-none mb-0.5">Credit b/f</span>
+                <span className="font-bold text-green-700">- ${fmt(creditBroughtForward)}</span>
+              </div>
+            </>
+          )}
           <div className="w-px h-8 bg-gray-200" />
           <div>
             <span className="text-xs text-gray-400 block leading-none mb-0.5">Total Paid</span>
@@ -244,6 +259,12 @@ export function RecordPaymentButton({ invoiceId, customerId, invoiceTotal, payme
                     <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       {amountError}
+                    </p>
+                  )}
+                  {!amountError && overpayNote && (
+                    <p className="mt-1.5 flex items-start gap-1 text-xs text-green-700">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      {overpayNote}
                     </p>
                   )}
                 </div>
