@@ -56,7 +56,7 @@ export default async function BillingPage() {
                 <span className="font-medium text-gray-700">kWh × Tariff Rate</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span>Electricity Levy</span>
+                <span>Electricity Levy <span className="text-gray-400">(if applicable)</span></span>
                 <span className="font-medium text-gray-700">Subtotal × 3%</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-gray-100">

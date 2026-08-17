@@ -172,12 +172,15 @@ export async function createInvoice(formData: FormData): Promise<{ error?: strin
     const billingMonth    = formData.get('billing_month') as string
     const dueDate         = formData.get('due_date') as string || null
     const notes           = formData.get('notes') as string || null
+    // Electricity levy is a 3% tax some clients are exempt from. The toggle on
+    // the billing form controls it per invoice; absent means charge it.
+    const applyLevy       = formData.get('apply_levy') !== 'false'
 
     const { data: customer, error: cErr } = await supabase
       .from('customers').select('name').eq('id', customerId).single()
     if (cErr || !customer) return { error: 'Customer not found' }
 
-    const { subtotal, electricityLevy, vat, total } = calculateInvoice(consumptionKwh, tariffRate)
+    const { subtotal, electricityLevy, vat, total } = calculateInvoice(consumptionKwh, tariffRate, applyLevy)
 
     const { count } = await supabase.from('invoices').select('*', { count: 'exact', head: true })
     const invoiceNumber = padInvoiceNumber((count ?? 0) + 1)

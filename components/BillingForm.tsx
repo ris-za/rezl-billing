@@ -34,6 +34,7 @@ export function BillingForm({ customers }: BillingFormProps) {
   const [prevReading, setPrevReading] = useState('')
   const [currReading, setCurrReading] = useState('')
   const [useReadings, setUseReadings] = useState(false)
+  const [applyLevy, setApplyLevy] = useState(true)
 
   function formatContractDate(dateStr: string | null): string {
     if (!dateStr) return '—'
@@ -52,7 +53,7 @@ export function BillingForm({ customers }: BillingFormProps) {
     : parseFloat(consumption) || 0
 
   const preview = selectedCustomer && effectiveConsumption > 0 && parseFloat(tariffRate) > 0
-    ? calculateInvoice(effectiveConsumption, parseFloat(tariffRate))
+    ? calculateInvoice(effectiveConsumption, parseFloat(tariffRate), applyLevy)
     : null
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -63,6 +64,7 @@ export function BillingForm({ customers }: BillingFormProps) {
       const curr = parseFloat(currReading)
       formData.set('consumption_kwh', String(curr - prev))
     }
+    formData.set('apply_levy', String(applyLevy))
     startTransition(async () => {
       const result = await createInvoice(formData)
       if (result.error) {
@@ -220,6 +222,31 @@ export function BillingForm({ customers }: BillingFormProps) {
         )}
       </div>
 
+      {/* Electricity levy toggle */}
+      <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        <div>
+          <p className="text-sm font-medium text-gray-700">Charge electricity levy (3%)</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {applyLevy
+              ? 'The 3% levy will be added to this invoice.'
+              : 'This client is exempt. No levy will be charged on this invoice.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={applyLevy}
+          onClick={() => setApplyLevy((v) => !v)}
+          className="relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30"
+          style={{ background: applyLevy ? '#16a34a' : '#d1d5db' }}
+        >
+          <span
+            className="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform"
+            style={{ transform: applyLevy ? 'translateX(22px)' : 'translateX(2px)' }}
+          />
+        </button>
+      </div>
+
       {/* Live preview */}
       {preview && (
         <div className="rounded-xl border border-green-200 bg-green-50 overflow-hidden">
@@ -236,7 +263,7 @@ export function BillingForm({ customers }: BillingFormProps) {
               <span className="font-medium text-gray-900">{formatUSD(preview.subtotal)}</span>
             </div>
             <div className="flex justify-between text-gray-600">
-              <span>Electricity Levy (3%)</span>
+              <span>Electricity Levy (3%){!applyLevy && <span className="text-xs text-gray-400"> · exempt</span>}</span>
               <span className="font-medium text-gray-900">{formatUSD(preview.electricityLevy)}</span>
             </div>
             <div className="flex justify-between text-gray-600">
