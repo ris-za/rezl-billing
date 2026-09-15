@@ -132,7 +132,7 @@ export function BillingForm({ customers }: BillingFormProps) {
             id="tariff_rate"
             name="tariff_rate"
             type="number"
-            step="0.0001"
+            step="any"
             min="0"
             required
             value={tariffRate}

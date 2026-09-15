@@ -137,7 +137,7 @@ export function CustomerForm({ customer }: CustomerFormProps) {
             id="tariff_rate"
             name="tariff_rate"
             type="number"
-            step="0.0001"
+            step="any"
             min="0"
             defaultValue={customer?.tariff_rate || ''}
             placeholder="e.g. 0.1440"
