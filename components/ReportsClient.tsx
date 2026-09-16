@@ -9,7 +9,7 @@
 
 
 import { useState, useMemo } from 'react'
-import { formatUSD } from '@/lib/calculations'
+import { formatUSD, formatTariff } from '@/lib/calculations'
 import { format, differenceInDays } from 'date-fns'
 import {
   FileSpreadsheet, FileDown, TrendingUp, Users,
@@ -107,7 +107,7 @@ export function ReportsClient({
         inv.customers.name,
         inv.billing_period,
         inv.consumption_kwh.toLocaleString(),
-        formatUSD(inv.tariff_rate),
+        formatTariff(inv.tariff_rate),
         formatUSD(inv.subtotal),
         formatUSD(inv.electricity_levy),
         formatUSD(inv.vat),

@@ -24,6 +24,16 @@ export function formatUSD(amount: number) {
   }).format(amount)
 }
 
+// Tariff rates carry more precision than money (e.g. 0.108, 0.10919125).
+// Showing them at 2 decimals rounds 0.108 to $0.11 and confuses clients, so
+// display the true rate: at least 2 decimals, up to 8, trailing zeros trimmed.
+export function formatTariff(rate: number) {
+  return '$' + rate.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8,
+  })
+}
+
 export function getContractEndDate(startDate: string | null, durationMonths: number | null): Date | null {
   if (!startDate || !durationMonths) return null
   const start = new Date(startDate)

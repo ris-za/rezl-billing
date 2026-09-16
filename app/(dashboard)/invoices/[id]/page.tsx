@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
-import { formatUSD, creditBroughtForward } from '@/lib/calculations'
+import { formatUSD, formatTariff, creditBroughtForward } from '@/lib/calculations'
 import { format } from 'date-fns'
 import { InvoiceStatusActions } from '@/components/InvoiceStatusActions'
 import { PrintButton } from '@/components/PrintButton'
@@ -255,7 +255,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                     {invoice.current_reading != null ? invoice.current_reading.toLocaleString() : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="py-4 px-4 text-right font-mono font-semibold text-gray-800 text-sm">{invoice.consumption_kwh.toLocaleString()}</td>
-                  <td className="py-4 px-4 text-right font-mono text-gray-500 text-xs">{formatUSD(invoice.tariff_rate)}</td>
+                  <td className="py-4 px-4 text-right font-mono text-gray-500 text-xs">{formatTariff(invoice.tariff_rate)}</td>
                   <td className="py-4 px-4 text-right font-semibold text-gray-800 text-sm">{formatUSD(invoice.subtotal)}</td>
                 </tr>
               </tbody>

@@ -11,7 +11,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createInvoice } from '@/lib/actions'
-import { calculateInvoice, formatUSD } from '@/lib/calculations'
+import { calculateInvoice, formatUSD, formatTariff } from '@/lib/calculations'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import type { Customer } from '@/types'
@@ -259,7 +259,7 @@ export function BillingForm({ customers }: BillingFormProps) {
               <span className="font-medium text-gray-900">{effectiveConsumption.toLocaleString()} kWh</span>
             </div>
             <div className="flex justify-between text-gray-600">
-              <span>Subtotal ({formatUSD(parseFloat(tariffRate))}/kWh)</span>
+              <span>Subtotal ({formatTariff(parseFloat(tariffRate))}/kWh)</span>
               <span className="font-medium text-gray-900">{formatUSD(preview.subtotal)}</span>
             </div>
             <div className="flex justify-between text-gray-600">
